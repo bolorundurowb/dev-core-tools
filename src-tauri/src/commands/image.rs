@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use tauri::command;
+use image::ImageEncoder;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImageConvertOptions {
     pub input_path: String,
     pub output_dir: String,
-    pub format: String,     // "PNG" | "JPG" | "WebP" | "AVIF"
+    pub format: String,     // "PNG" | "JPG" | "WebP" | "AVIF" | "ICO"
     pub quality: u8,        // 0-100
     pub resize_width: Option<u32>,
     pub resize_height: Option<u32>,
@@ -47,6 +48,7 @@ pub async fn convert_image(options: ImageConvertOptions) -> Result<ImageConvertR
         "JPG" | "JPEG" => "jpg",
         "WebP" => "webp",
         "AVIF" => "avif",
+        "ICO" => "ico",
         _ => "png",
     };
 
@@ -60,6 +62,27 @@ pub async fn convert_image(options: ImageConvertOptions) -> Result<ImageConvertR
                 options.quality,
             );
             encoder.encode_image(&rgb).map_err(|e| e.to_string())?;
+        }
+        "ICO" => {
+            let mut png_buf = Vec::new();
+            let rgb = img.to_rgba8();
+            let png_encoder = image::codecs::png::PngEncoder::new(&mut png_buf);
+            png_encoder.write_image(
+                rgb.as_raw(),
+                img.width(),
+                img.height(),
+                image::ExtendedColorType::Rgba8,
+            ).map_err(|e| e.to_string())?;
+            let frame = image::codecs::ico::IcoFrame::with_encoded(
+                png_buf,
+                img.width(),
+                img.height(),
+                image::ExtendedColorType::Rgba8,
+            ).map_err(|e| e.to_string())?;
+            let encoder = image::codecs::ico::IcoEncoder::new(
+                std::fs::File::create(&output_path).map_err(|e| e.to_string())?,
+            );
+            encoder.encode_images(&[frame]).map_err(|e| e.to_string())?;
         }
         "WebP" => {
             img.save(&output_path).map_err(|e| e.to_string())?;

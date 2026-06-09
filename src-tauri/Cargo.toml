@@ -1,6 +1,6 @@
 [package]
 name = "dev-core-tools"
-version = "1.0.6"
+version = "1.0.7"
 description = "Dev Core Tools — 30 local-first developer tools, one window."
 authors = ["Dev Core Tools Contributors"]
 license = "MIT"
@@ -30,7 +30,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Image processing
-image = { version = "0.25", features = ["png", "jpeg", "webp", "avif"] }
+image = { version = "0.25", features = ["png", "jpeg", "webp", "avif", "ico"] }
 
 # Crypto
 sha1 = "0.10"

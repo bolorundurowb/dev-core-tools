@@ -34,9 +34,10 @@ const SAMPLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="
       <div style="font-size:12px;color:var(--text-muted)">Minify and clean SVG files using SVGO</div>
     </div>
     <div style="flex:1"></div>
-    <button (click)="optimise()" [style.opacity]="!inputSvg().trim() ? '0.45' : '1'"
+    <button (click)="optimise()" [disabled]="!inputSvg().trim() || isOptimising()"
+      [style.opacity]="(!inputSvg().trim() || isOptimising()) ? '0.45' : '1'"
       style="background:var(--maroon);color:#fff;height:28px;padding:0 14px;border-radius:7px;font-size:12.5px;font-weight:500;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-      <dt-icon name="rocket" [size]="12" color="#fff" /> Optimise
+      <dt-icon name="rocket" [size]="12" color="#fff" /> {{ isOptimising() ? 'Optimising...' : 'Optimise' }}
     </button>
   </div>
 
@@ -159,6 +160,7 @@ export class SvgOptimizerComponent {
   optimizedSize = signal(0);
   errorMsg = signal('');
   copied = signal(false);
+  isOptimising = signal(false);
 
   Math = Math;
 
@@ -200,31 +202,29 @@ export class SvgOptimizerComponent {
     reader.readAsText(file);
   }
 
-  optimise() {
+  async optimise() {
     const svg = this.inputSvg().trim();
-    if (!svg) return;
+    if (!svg || this.isOptimising()) return;
+    this.isOptimising.set(true);
     this.errorMsg.set('');
     this.originalSize.set(new Blob([svg]).size);
 
-    import('svgo/browser').then(({ optimize }) => {
-      try {
-        const opts: Record<string, unknown> = {
-          multipass: this.options.find(o => o.key === 'multipass')?.enabled ?? true,
-          plugins: [
-            'preset-default',
-            ...(this.options.find(o => o.key === 'removeMetadata')?.enabled ? ['removeMetadata'] : []),
-            ...(this.options.find(o => o.key === 'collapseGroups')?.enabled ? ['collapseGroups'] : []),
-            ...(this.options.find(o => o.key === 'removeHidden')?.enabled ? ['removeHiddenElems'] : []),
-            ...(this.options.find(o => o.key === 'cleanIDs')?.enabled ? ['cleanIds'] : []),
-          ],
-        };
-        const result = optimize(svg, opts as Parameters<typeof optimize>[1]);
-        this.outputSvg.set(result.data);
-        this.optimizedSize.set(new Blob([result.data]).size);
-      } catch (err) {
-        this.errorMsg.set(String(err));
-      }
-    }).catch(() => {
+    try {
+      const { optimize } = await import('svgo/browser');
+      const opts: Record<string, unknown> = {
+        multipass: this.options.find(o => o.key === 'multipass')?.enabled ?? true,
+        plugins: [
+          'preset-default',
+          ...(this.options.find(o => o.key === 'removeMetadata')?.enabled ? ['removeMetadata'] : []),
+          ...(this.options.find(o => o.key === 'collapseGroups')?.enabled ? ['collapseGroups'] : []),
+          ...(this.options.find(o => o.key === 'removeHidden')?.enabled ? ['removeHiddenElems'] : []),
+          ...(this.options.find(o => o.key === 'cleanIDs')?.enabled ? ['cleanIds'] : []),
+        ],
+      };
+      const result = await optimize(svg, opts);
+      this.outputSvg.set(result.data);
+      this.optimizedSize.set(new Blob([result.data]).size);
+    } catch (err) {
       // Fallback: simple minification without svgo
       try {
         let out = svg
@@ -240,7 +240,9 @@ export class SvgOptimizerComponent {
       } catch (err2) {
         this.errorMsg.set('Optimisation failed: ' + String(err2));
       }
-    });
+    } finally {
+      this.isOptimising.set(false);
+    }
   }
 
   copyOutput() {

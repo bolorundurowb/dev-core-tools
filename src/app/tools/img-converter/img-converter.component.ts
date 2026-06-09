@@ -20,10 +20,11 @@ const MIME_MAP: Record<string, string> = {
   JPG: 'image/jpeg',
   WebP: 'image/webp',
   AVIF: 'image/avif',
+  ICO: 'image/x-icon',
 };
 
 const EXT_MAP: Record<string, string> = {
-  PNG: 'png', JPG: 'jpg', WebP: 'webp', AVIF: 'avif',
+  PNG: 'png', JPG: 'jpg', WebP: 'webp', AVIF: 'avif', ICO: 'ico',
 };
 
 const NATIVE_IMAGE_THRESHOLD_BYTES = 2 * 1024 * 1024;
@@ -49,7 +50,7 @@ let nextId = 0;
     </div>
     <div>
       <div style="font-size:15px;font-weight:600">Image Converter</div>
-      <div style="font-size:12px;color:var(--text-muted)">Convert PNG, JPG, WebP, AVIF with native fallback for large files</div>
+      <div style="font-size:12px;color:var(--text-muted)">Convert PNG, JPG, WebP, AVIF, ICO with native fallback for large files</div>
     </div>
     <div style="flex:1"></div>
     <button (click)="convertAll()" [disabled]="pendingCount() === 0"
@@ -75,7 +76,7 @@ let nextId = 0;
         style="margin:16px;border:2px dashed var(--border);border-radius:10px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s">
         <dt-icon name="upload" [size]="24" color="var(--text-muted)" />
         <div style="font-size:13px;font-weight:500;color:var(--text)">Drop images here</div>
-        <div style="font-size:11.5px;color:var(--text-muted)">or click to browse — PNG, JPG, WebP, AVIF</div>
+        <div style="font-size:11.5px;color:var(--text-muted)">or click to browse — PNG, JPG, WebP, AVIF, ICO</div>
         <input #fileInput type="file" multiple accept="image/*" style="display:none" (change)="onFileInput($event)" />
       </div>
 
@@ -206,7 +207,7 @@ export class ImgConverterComponent {
   resizeWidth: number | null = null;
   resizeHeight: number | null = null;
 
-  formats = ['PNG', 'JPG', 'WebP', 'AVIF'];
+  formats = ['PNG', 'JPG', 'WebP', 'AVIF', 'ICO'];
 
   pendingCount() { return this.files().filter(f => f.status === 'pending').length; }
   doneCount() { return this.files().filter(f => f.status === 'done').length; }
@@ -217,6 +218,7 @@ export class ImgConverterComponent {
     if (t.includes('jpeg') || t.includes('jpg')) return 'JPG';
     if (t.includes('webp')) return 'WebP';
     if (t.includes('avif')) return 'AVIF';
+    if (t.includes('icon') || item.file.name.toLowerCase().endsWith('.ico')) return 'ICO';
     return t.split('/')[1]?.toUpperCase() || '?';
   }
 
@@ -292,6 +294,10 @@ export class ImgConverterComponent {
       if (nativeBlob) return nativeBlob;
     } catch {
       // Browser conversion keeps the tool usable outside Tauri and if a codec is unavailable natively.
+    }
+
+    if (targetFmt === 'ICO') {
+      throw new Error('ICO conversion requires native Tauri runtime');
     }
 
     return new Promise((resolve, reject) => {
