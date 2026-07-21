@@ -1,10 +1,10 @@
 [package]
 name = "dev-core-tools"
-version = "1.0.7"
+version = "1.1.0"
 description = "Dev Core Tools — 30 local-first developer tools, one window."
 authors = ["Dev Core Tools Contributors"]
 license = "MIT"
-repository = "https://github.com/yourname/dev-core-tools"
+repository = "https://github.com/bolorundurowb/dev-core-tools"
 edition = "2021"
 rust-version = "1.77.2"
 
