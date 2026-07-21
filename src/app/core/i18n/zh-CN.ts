@@ -65,6 +65,7 @@ export const ZH_CN: TranslationDictionary = {
   'SQL Formatter': 'SQL 格式化器',
   'Code Beautifier': '代码美化器',
   'Markdown Preview': 'Markdown 预览',
+  'Mermaid Editor': 'Mermaid 编辑器',
   'Diff Viewer': '差异查看器',
   'Text Case': '文本大小写',
   'Lorem Ipsum': 'Lorem Ipsum',
@@ -118,5 +119,6 @@ export const ZH_CN: TranslationDictionary = {
   'Calculate subnets and ranges': '计算子网和范围',
   'Convert tabular data between formats': '在格式之间转换表格数据',
   'Full transitive dependency tree across target frameworks': '跨目标框架的完整传递依赖树',
+  'Edit and preview Mermaid diagrams': '编辑和预览 Mermaid 图表',
 };
 

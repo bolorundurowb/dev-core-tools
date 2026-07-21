@@ -65,6 +65,7 @@ export const RU_RU: TranslationDictionary = {
   'SQL Formatter': 'Форматтер SQL',
   'Code Beautifier': 'Форматирование кода',
   'Markdown Preview': 'Предпросмотр Markdown',
+  'Mermaid Editor': 'Редактор Mermaid',
   'Diff Viewer': 'Просмотр различий',
   'Text Case': 'Регистр текста',
   'Lorem Ipsum': 'Lorem Ipsum',
@@ -118,5 +119,6 @@ export const RU_RU: TranslationDictionary = {
   'Calculate subnets and ranges': 'Вычисляет подсети и диапазоны',
   'Convert tabular data between formats': 'Преобразует табличные данные между форматами',
   'Full transitive dependency tree across target frameworks': 'Полное дерево транзитивных зависимостей по целевым фреймворкам',
+  'Edit and preview Mermaid diagrams': 'Редактирование и предпросмотр диаграмм Mermaid',
 };
 

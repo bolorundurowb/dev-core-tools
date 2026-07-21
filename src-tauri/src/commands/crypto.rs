@@ -4,7 +4,7 @@ use sha2::{Sha256, Sha512, Sha384, Digest};
 use sha1::Sha1;
 use md5::Md5;
 use crc32fast::Hasher as Crc32Hasher;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use hex;
 use tokio::io::AsyncReadExt;
 

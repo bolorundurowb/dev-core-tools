@@ -1,6 +1,6 @@
 {
   "name": "dev-core-tools",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4200",
@@ -39,6 +39,7 @@
     "diff": "^9.0.0",
     "js-beautify": "^1.15.4",
     "marked": "^18.0.4",
+    "mermaid": "^11.16.0",
     "monaco-editor": "^0.55.1",
     "ngx-monaco-editor-v2": "^21.1.4",
     "qrcode": "^1.5.4",
