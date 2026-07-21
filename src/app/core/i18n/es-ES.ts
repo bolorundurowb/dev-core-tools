@@ -65,6 +65,7 @@ export const ES_ES: TranslationDictionary = {
   'SQL Formatter': 'Formateador SQL',
   'Code Beautifier': 'Embellecedor de código',
   'Markdown Preview': 'Vista previa Markdown',
+  'Mermaid Editor': 'Editor Mermaid',
   'Diff Viewer': 'Visor de diferencias',
   'Text Case': 'Capitalización de texto',
   'Lorem Ipsum': 'Lorem Ipsum',
@@ -118,5 +119,6 @@ export const ES_ES: TranslationDictionary = {
   'Calculate subnets and ranges': 'Calcula subredes y rangos',
   'Convert tabular data between formats': 'Convierte datos tabulares entre formatos',
   'Full transitive dependency tree across target frameworks': 'Árbol completo de dependencias transitivas por framework de destino',
+  'Edit and preview Mermaid diagrams': 'Editar y previsualizar diagramas Mermaid',
 };
 
