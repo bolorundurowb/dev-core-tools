@@ -94,7 +94,7 @@ const SAMPLE_KEYS = Object.keys(SAMPLES);
       border:1px solid rgba(224,82,82,.18); border-radius:8px; padding:8px 12px;
       margin:8px 12px; flex-shrink:0;
     }
-    .mmd-preview :deep(svg) { max-width:100%; height:auto; }
+    .mmd-preview ::ng-deep svg { max-width:100%; height:auto; }
   `],
   template: `
     <div style="flex:1;display:flex;flex-direction:column;min-height:0;background:var(--bg);font-family:var(--font-ui)">
