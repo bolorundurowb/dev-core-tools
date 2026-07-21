@@ -58,6 +58,10 @@ export const routes: Routes = [
         loadComponent: () => import('./tools/markdown/markdown.component').then(m => m.MarkdownComponent),
       },
       {
+        path: 'tools/mermaid',
+        loadComponent: () => import('./tools/mermaid/mermaid.component').then(m => m.MermaidComponent),
+      },
+      {
         path: 'tools/diff',
         loadComponent: () => import('./tools/diff/diff.component').then(m => m.DiffComponent),
       },
