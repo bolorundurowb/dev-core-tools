@@ -40,6 +40,14 @@ import { CodeEditorComponent } from '../../core/components/code-editor/code-edit
           Minify
         </button>
 
+        <button (click)="stringify()" style="background:transparent;color:var(--text);border:1px solid var(--border);height:28px;padding:0 12px;border-radius:7px;font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+          Stringify
+        </button>
+
+        <button (click)="unstringify()" style="background:transparent;color:var(--text);border:1px solid var(--border);height:28px;padding:0 12px;border-radius:7px;font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+          Unstringify
+        </button>
+
         <button (click)="copy()" style="background:var(--teal);color:#fff;height:28px;padding:0 12px;border-radius:7px;font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:none">
           <dt-icon name="copy" [size]="13" [color]="'#fff'" />
           {{ copied() ? 'Copied!' : 'Copy' }}
@@ -187,6 +195,33 @@ export class JsonComponent {
     const raw = this.inputVal().trim();
     if (!raw) return;
     try { this.inputVal.set(JSON.stringify(JSON.parse(raw))); } catch { /* ignore */ }
+  }
+
+  stringify() {
+    const raw = this.inputVal().trim();
+    if (!raw) return;
+    this.inputVal.set(JSON.stringify(raw));
+  }
+
+  unstringify() {
+    const raw = this.inputVal().trim();
+    if (!raw) return;
+    try {
+      const decoded = JSON.parse(raw);
+      if (typeof decoded !== 'string') {
+        this.inputVal.set(JSON.stringify(decoded, null, this.indentStr()));
+        return;
+      }
+      try {
+        this.inputVal.set(JSON.stringify(JSON.parse(decoded), null, this.indentStr()));
+      } catch {
+        this.inputVal.set(decoded);
+      }
+    } catch { /* ignore */ }
+  }
+
+  private indentStr(): string | number {
+    return this.indent === 'tab' ? '\t' : Number(this.indent);
   }
 
   async copy() {
