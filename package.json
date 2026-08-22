@@ -52,7 +52,7 @@
     "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^21.2.12",
+    "@angular-devkit/build-angular": "^22.1.5",
     "@angular/cli": "^21.2.12",
     "@angular/compiler-cli": "^21.2.14",
     "@tauri-apps/cli": "^2.11.2",
