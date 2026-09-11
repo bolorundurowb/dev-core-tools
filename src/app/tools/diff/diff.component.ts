@@ -145,7 +145,7 @@ function buildInline(before: string, after: string): DiffLine[] {
                   {{ line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ' }}
                 </div>
                 <!-- Content -->
-                <div style="flex:1;padding:0 10px;overflow:hidden;white-space:pre;color:var(--text)">{{ line.text }}</div>
+                <div style="flex:1;padding:0 10px;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--text)">{{ line.text }}</div>
               </div>
             }
             @if (!diffLines().length && (beforeVal() || afterVal())) {
@@ -184,7 +184,7 @@ function buildInline(before: string, after: string): DiffLine[] {
                   [style.color]="line.type === 'added' ? '#4caf81' : line.type === 'removed' ? '#e05252' : 'var(--text-faint)'">
                   {{ line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ' }}
                 </div>
-                <div style="flex:1;padding:0 10px;overflow:hidden;white-space:pre;color:var(--text)">{{ line.text }}</div>
+                <div style="flex:1;padding:0 10px;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--text)">{{ line.text }}</div>
               </div>
             }
           </div>
