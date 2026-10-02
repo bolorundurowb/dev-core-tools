@@ -3,12 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { invoke } from '@tauri-apps/api/core';
 import { readFile } from '@tauri-apps/plugin-fs';
 import { tempDir } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
 import { TopbarComponent } from '../../layout/topbar/topbar.component';
 import { IconComponent } from '../../core/icon.component';
 
-interface FileItem {
+export interface FileItem {
   id: number;
   file: File;
+  nativePath?: string;
   status: 'pending' | 'converting' | 'done' | 'error';
   outputBlob?: Blob;
   outputSize?: number;
@@ -34,6 +36,41 @@ interface NativeImageResult {
 }
 
 let nextId = 0;
+
+/**
+ * Encapsulates raw PNG data into a standard Windows ICO (.ico) file container.
+ * The modern ICO format natively supports embedded PNG frames (Vista+).
+ */
+export function createIcoFromPng(pngBytes: Uint8Array, width: number, height: number): Uint8Array {
+  const totalSize = 6 + 16 + pngBytes.length;
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new DataView(buffer);
+  const out = new Uint8Array(buffer);
+
+  // 1. ICONDIR Header (6 bytes)
+  view.setUint16(0, 0, true);       // Reserved (must be 0)
+  view.setUint16(2, 1, true);       // Resource type: 1 = ICO
+  view.setUint16(4, 1, true);       // Image count: 1
+
+  // 2. ICONDIRENTRY (16 bytes)
+  // Width and height: 1-255; 0 represents 256 pixels
+  const w = width >= 256 ? 0 : width;
+  const h = height >= 256 ? 0 : height;
+
+  view.setUint8(6, w);              // Width
+  view.setUint8(7, h);              // Height
+  view.setUint8(8, 0);              // Color count (0 = no palette)
+  view.setUint8(9, 0);              // Reserved
+  view.setUint16(10, 1, true);      // Color planes: 1
+  view.setUint16(12, 32, true);     // Bits per pixel: 32 (RGBA)
+  view.setUint32(14, pngBytes.length, true); // Image data size in bytes
+  view.setUint32(18, 22, true);     // Offset of image data from beginning (6 + 16 = 22)
+
+  // 3. PNG Image Data
+  out.set(pngBytes, 22);
+
+  return out;
+}
 
 @Component({
     selector: 'dt-tool-img-converter',
@@ -70,7 +107,7 @@ let nextId = 0;
         (dragover)="$event.preventDefault(); dragOver.set(true)"
         (dragleave)="dragOver.set(false)"
         (drop)="onDrop($event)"
-        (click)="fileInput.click()"
+        (click)="selectFiles(fileInput)"
         [style.background]="dragOver() ? 'var(--maroon-soft)' : 'var(--surface)'"
         [style.border-color]="dragOver() ? 'var(--maroon)' : 'var(--border)'"
         style="margin:16px;border:2px dashed var(--border);border-radius:10px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s">
@@ -234,6 +271,52 @@ export class ImgConverterComponent {
     return (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
   }
 
+  async selectFiles(fileInput: HTMLInputElement) {
+    try {
+      const selected = await open({
+        multiple: true,
+        filters: [{
+          name: 'Images',
+          extensions: ['png', 'jpg', 'jpeg', 'webp', 'avif', 'ico', 'bmp', 'svg'],
+        }],
+      });
+      if (selected) {
+        const paths = Array.isArray(selected) ? selected : [selected];
+        if (paths.length > 0) {
+          await this.addPaths(paths);
+          return;
+        }
+      }
+    } catch {
+      // Browser-only mode fallback or dialog error
+    }
+    fileInput.click();
+  }
+
+  async addPaths(paths: string[]) {
+    const newItems: FileItem[] = [];
+    for (const path of paths) {
+      try {
+        const bytes = await readFile(path);
+        const name = path.replace(/^.*[\\\/]/, '');
+        const ext = name.split('.').pop()?.toUpperCase() ?? '';
+        const mime = MIME_MAP[ext] || (ext === 'JPEG' ? 'image/jpeg' : 'image/png');
+        const file = new File([bytes.buffer as ArrayBuffer], name, { type: mime });
+        newItems.push({
+          id: nextId++,
+          file,
+          nativePath: path,
+          status: 'pending',
+        });
+      } catch (err) {
+        console.error('Failed to read file from path:', path, err);
+      }
+    }
+    if (newItems.length > 0) {
+      this.files.update(existing => [...existing, ...newItems]);
+    }
+  }
+
   onDrop(e: DragEvent) {
     e.preventDefault();
     this.dragOver.set(false);
@@ -267,9 +350,12 @@ export class ImgConverterComponent {
     return typeof path === 'string' && path.length > 0 ? path : null;
   }
 
-  private async convertImageNative(file: File, targetFmt: string, q: number): Promise<Blob | null> {
-    const inputPath = this.nativePathFor(file);
-    const shouldUseNative = file.size >= NATIVE_IMAGE_THRESHOLD_BYTES || !!this.resizeWidth || !!this.resizeHeight;
+  private async convertImageNative(item: FileItem, targetFmt: string, q: number): Promise<Blob | null> {
+    const inputPath = item.nativePath || this.nativePathFor(item.file);
+    const shouldUseNative = targetFmt === 'ICO'
+      || item.file.size >= NATIVE_IMAGE_THRESHOLD_BYTES
+      || !!this.resizeWidth
+      || !!this.resizeHeight;
     if (!inputPath || !shouldUseNative) return null;
 
     const result = await invoke<NativeImageResult>('convert_image', {
@@ -285,24 +371,99 @@ export class ImgConverterComponent {
       },
     });
     const bytes = await readFile(result.output_path);
-    return new Blob([new Uint8Array(bytes)], { type: MIME_MAP[targetFmt] });
+    return new Blob([bytes.buffer as ArrayBuffer], { type: MIME_MAP[targetFmt] });
   }
 
-  async convertImage(file: File, targetFmt: string, q: number): Promise<Blob> {
+  private async convertImageToIco(file: File): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = async () => {
+        URL.revokeObjectURL(url);
+        try {
+          const origW = img.naturalWidth || img.width;
+          const origH = img.naturalHeight || img.height;
+
+          let targetW = this.resizeWidth || origW;
+          let targetH = this.resizeHeight || origH;
+
+          if (this.lockAspect() && this.resizeWidth && !this.resizeHeight) {
+            targetH = Math.round(origH * (this.resizeWidth / origW));
+          } else if (this.lockAspect() && this.resizeHeight && !this.resizeWidth) {
+            targetW = Math.round(origW * (this.resizeHeight / origH));
+          }
+
+          // ICO dimensions must fit within 256x256
+          if (targetW > 256 || targetH > 256) {
+            const scale = Math.min(256 / targetW, 256 / targetH);
+            targetW = Math.max(1, Math.round(targetW * scale));
+            targetH = Math.max(1, Math.round(targetH * scale));
+          }
+
+          const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+          const noResize = !this.resizeWidth && !this.resizeHeight;
+          if (isPng && noResize && origW <= 256 && origH <= 256) {
+            const arrayBuf = await file.arrayBuffer();
+            const icoBytes = createIcoFromPng(new Uint8Array(arrayBuf), origW, origH);
+            resolve(new Blob([icoBytes.buffer as ArrayBuffer], { type: 'image/x-icon' }));
+            return;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to create canvas 2d context for ICO'));
+            return;
+          }
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              reject(new Error('Failed to encode image to PNG for ICO container'));
+              return;
+            }
+            try {
+              const arrayBuf = await blob.arrayBuffer();
+              const icoBytes = createIcoFromPng(new Uint8Array(arrayBuf), targetW, targetH);
+              resolve(new Blob([icoBytes.buffer as ArrayBuffer], { type: 'image/x-icon' }));
+            } catch (e) {
+              reject(e);
+            }
+          }, 'image/png');
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image for ICO conversion'));
+      };
+
+      img.src = url;
+    });
+  }
+
+  async convertImage(item: FileItem, targetFmt: string, q: number): Promise<Blob> {
     try {
-      const nativeBlob = await this.convertImageNative(file, targetFmt, q);
+      const nativeBlob = await this.convertImageNative(item, targetFmt, q);
       if (nativeBlob) return nativeBlob;
     } catch {
-      // Browser conversion keeps the tool usable outside Tauri and if a codec is unavailable natively.
+      // Browser conversion keeps the tool usable outside Tauri and if native fails.
     }
 
     if (targetFmt === 'ICO') {
-      throw new Error('ICO conversion requires native Tauri runtime');
+      return this.convertImageToIco(item.file);
     }
 
     return new Promise((resolve, reject) => {
       const img = new Image();
-      const url = URL.createObjectURL(file);
+      const url = URL.createObjectURL(item.file);
       img.onload = () => {
         let w = this.resizeWidth || img.width;
         let h = this.resizeHeight || img.height;
@@ -333,7 +494,7 @@ export class ImgConverterComponent {
     const q = this.quality();
     pending.forEach(item => {
       this.files.update(fs => fs.map(f => f.id === item.id ? { ...f, status: 'converting' } : f));
-      this.convertImage(item.file, fmt, q)
+      this.convertImage(item, fmt, q)
         .then(blob => {
           this.files.update(fs => fs.map(f =>
             f.id === item.id ? { ...f, status: 'done', outputBlob: blob, outputSize: blob.size } : f,
@@ -341,7 +502,7 @@ export class ImgConverterComponent {
         })
         .catch(err => {
           this.files.update(fs => fs.map(f =>
-            f.id === item.id ? { ...f, status: 'error', errorMsg: String(err) } : f,
+            f.id === item.id ? { ...f, status: 'error', errorMsg: (err?.message || String(err)) } : f,
           ));
         });
     });
@@ -355,7 +516,9 @@ export class ImgConverterComponent {
     const a = document.createElement('a');
     a.href = url;
     a.download = `${baseName}.${ext}`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 }
